@@ -1,14 +1,3 @@
-# text = To ask those questions is to answer them.
-1   To      to     PART   _   _   2   mark  _   _
-2   ask     ask    VERB   _   _   0   root  _   _
-3   those   those  DET    _   _   4   det   _   _
-4   questions question NOUN   _   _   2   obj   _   _
-5   is      be     VERB   _   _   2   ccomp _   _
-6   to      to     PART   _   _   7   mark  _   _
-7   answer  answer VERB   _   _   5   xcomp _   _
-8   them    they   PRON   _   _   7   obj   _   _
-9   .       .      PUNCT  _   _   2   punct _   _
-
 # newdoc id = weblog-blogspot.com_zentelligence_20040423000200_ENG_20040423_000200
 # sent_id = weblog-blogspot.com_zentelligence_20040423000200_ENG_20040423_000200-0001
 # newpar id = weblog-blogspot.com_zentelligence_20040423000200_ENG_20040423_000200-p0001
