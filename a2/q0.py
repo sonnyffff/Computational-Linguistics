@@ -18,8 +18,17 @@ def deepest():
         None
     """
     ### START CODE HERE
-    max(max(len(hp) for hp in syn.hypernym_paths()) for syn in wn.all_synsets())
-    raise NotImplementedError
+    longest = None
+    len_path = -1
+    for syn in wn.all_synsets():
+        for hp in syn.hypernym_paths():
+            if len(hp) > len_path:
+                longest = syn
+                len_path = len(hp)
+    print(longest)
+    for hp in longest.hypernym_paths():
+        print(len(hp))
+    # raise NotImplementedError
 
 
 def superdefn(s: str) -> T.List[str]:
@@ -41,7 +50,17 @@ def superdefn(s: str) -> T.List[str]:
         ['make', 'tough', 'or', 'tougher', 'gain', 'strength', 'make', 'fit']
     """
     ### START CODE HERE
-    raise NotImplementedError
+    superdefinition = []
+    synset = wn.synset(s)
+    temp = [synset] + synset.hypernyms() + synset.hyponyms()
+
+    for synset in temp:
+        definitions = synset.definition()
+        tokens = word_tokenize(definitions)
+        superdefinition.extend(tokens)
+
+    return superdefinition
+    # raise NotImplementedError
 
 
 def stop_tokenize(s: str) -> T.List[str]:
@@ -58,7 +77,12 @@ def stop_tokenize(s: str) -> T.List[str]:
         ['Dance', 'Eternity', 'sir']
     """
     ### START CODE HERE
-    raise NotImplementedError
+    tokens = word_tokenize(s)
+    stop_words = set(stopwords.words('english'))
+    tokens = [t for t in tokens if t.isalpha()]
+    ret = [t for t in tokens if t.lower() not in stop_words]
+    return ret
+    # raise NotImplementedError
 
 
 if __name__ == '__main__':
