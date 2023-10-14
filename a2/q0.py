@@ -28,6 +28,13 @@ def deepest():
     print(longest)
     for hp in longest.hypernym_paths():
         print(len(hp))
+
+    # for syn in wn.all_synsets():
+    #     length = syn.max_depth()
+    #     if length > len_path:
+    #         longest = syn
+    #         len_path = length
+
     # raise NotImplementedError
 
 
@@ -79,8 +86,7 @@ def stop_tokenize(s: str) -> T.List[str]:
     ### START CODE HERE
     tokens = word_tokenize(s)
     stop_words = set(stopwords.words('english'))
-    tokens = [t for t in tokens if t.isalpha()]
-    ret = [t for t in tokens if t.lower() not in stop_words]
+    ret = [t for t in tokens if t.lower() not in stop_words and t.lower() not in punctuation]
     return ret
     # raise NotImplementedError
 

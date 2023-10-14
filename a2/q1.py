@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-# Student Name: NAME
-# Student Number: NUMBER
-# UTORid: ID
+# Student Name: Zijia(Sonny) Chen
+# Student Number: 1005983349
+# UTORid: chenz347
 
 from collections import Counter
 from typing import *
@@ -32,7 +32,11 @@ def mfs(sent: Sequence[WSDToken], word_index: int) -> Synset:
         Synset: The most frequent sense for the given word.
     """
     ### START CODE HERE
-    raise NotImplementedError
+    word = sent[word_index].lemma
+    synsets = wn.synsets(word)
+
+    return synsets[0]
+    # raise NotImplementedError
 
 
 def lesk(sent: Sequence[WSDToken], word_index: int) -> Synset:
@@ -52,7 +56,21 @@ def lesk(sent: Sequence[WSDToken], word_index: int) -> Synset:
         Synset: The prediction of the correct sense for the given word.
     """
     ### START CODE HERE
-    raise NotImplementedError
+    best_sense = mfs(sent, word_index)
+    best_score = 0
+    word = sent[word_index].lemma
+    context = sent
+    for sense in wn.synsets(word):
+        signature = stop_tokenize(sense.definition())
+        for e in sense.examples():
+            signature.extend(stop_tokenize(e))
+        score = len(set(signature) & set(context))
+
+        if score > best_score:
+            best_sense = sense
+            best_score = score
+    return best_sense
+    # raise NotImplementedError
 
 
 def lesk_ext(sent: Sequence[WSDToken], word_index: int) -> Synset:
@@ -72,7 +90,29 @@ def lesk_ext(sent: Sequence[WSDToken], word_index: int) -> Synset:
         Synset: The prediction of the correct sense for the given word.
     """
     ### START CODE HERE
-    raise NotImplementedError
+    best_sense = mfs(sent, word_index)
+    best_score = 0
+    word = sent[word_index].lemma
+    context = sent
+    for sense in wn.synsets(word):
+        signature = stop_tokenize(sense.definition())
+        for e in sense.examples():
+            signature.extend(stop_tokenize(e))
+        # Iterate through sense's hyponyms, holonyms, and meronyms
+        new_bag = sense.hyponyms() + sense.member_holonyms() + sense.part_holonyms() + sense.substance_holonyms() \
+                  + sense.member_meronyms() + sense.part_meronyms() + sense.substance_meronyms()
+        for sense2 in new_bag:
+            signature.extend(stop_tokenize(sense2.definition()))
+            for e2 in sense2.examples():
+                signature.extend(stop_tokenize(e2))
+
+        score = len(set(signature) & set(context))
+
+        if score > best_score:
+            best_sense = sense
+            best_score = score
+    return best_sense
+    # raise NotImplementedError
 
 
 def lesk_cos(sent: Sequence[WSDToken], word_index: int) -> Synset:
