@@ -2,7 +2,7 @@
 # Student Name: Zijia(Sonny) Chen
 # Student Number: 1005983349
 # UTORid: chenz347
-
+import math
 from collections import Counter
 from typing import *
 
@@ -132,7 +132,39 @@ def lesk_cos(sent: Sequence[WSDToken], word_index: int) -> Synset:
         Synset: The prediction of the correct sense for the given word.
     """
     ### START CODE HERE
-    raise NotImplementedError
+    best_sense = mfs(sent, word_index)
+    best_score = 0
+    word = sent[word_index].lemma
+    context = sent
+    # create a counter to count occurrence of the words
+    signature_vec = Counter()
+    context_vec = Counter()
+    for sense in wn.synsets(word):
+        signature = stop_tokenize(sense.definition())
+        for e in sense.examples():
+            signature.extend(stop_tokenize(e))
+        # Iterate through sense's hyponyms, holonyms, and meronyms
+        new_bag = sense.hyponyms() + sense.member_holonyms() + sense.part_holonyms() + sense.substance_holonyms() \
+                  + sense.member_meronyms() + sense.part_meronyms() + sense.substance_meronyms()
+        for sense2 in new_bag:
+            signature.extend(stop_tokenize(sense2.definition()))
+            for e2 in sense2.examples():
+                signature.extend(stop_tokenize(e2))
+        # count
+        signature_vec.update(signature)
+        context_vec.update(context)
+        # cosine similarity
+        dot = sum(signature_vec[w] * context_vec[w] for w in signature_vec if w in context_vec)
+        mag1 = math.sqrt(sum(i ** 2 for i in signature_vec.values()))
+        mag2 = math.sqrt(sum(i ** 2 for i in context_vec.values()))
+        score = dot / (mag1 * mag2)
+        # score = len(set(signature) & set(context))
+
+        if score > best_score:
+            best_sense = sense
+            best_score = score
+    return best_sense
+    # raise NotImplementedError
 
 
 def lesk_cos_onesided(sent: Sequence[WSDToken], word_index: int) -> Synset:
@@ -152,7 +184,50 @@ def lesk_cos_onesided(sent: Sequence[WSDToken], word_index: int) -> Synset:
         Synset: The prediction of the correct sense for the given word.
     """
     ### START CODE HERE
-    raise NotImplementedError
+    best_sense = mfs(sent, word_index)
+    best_score = 0
+    word = sent[word_index].lemma
+    context = sent
+    # create a counter to count occurrence of the words
+    signature_vec = Counter()
+    context_vec = Counter()
+    for sense in wn.synsets(word):
+        signature = stop_tokenize(sense.definition())
+        for e in sense.examples():
+            signature.extend(stop_tokenize(e))
+        # Iterate through sense's hyponyms, holonyms, and meronyms
+        new_bag = sense.hyponyms() + sense.member_holonyms() + sense.part_holonyms() + sense.substance_holonyms() \
+                  + sense.member_meronyms() + sense.part_meronyms() + sense.substance_meronyms()
+        for sense2 in new_bag:
+            signature.extend(stop_tokenize(sense2.definition()))
+            for e2 in sense2.examples():
+                signature.extend(stop_tokenize(e2))
+        # does not include words that occur only in the signature
+        for w in signature:
+            if w not in context:
+                signature.remove(w)
+        add_set = set()
+        for w in context:
+            if w not in signature:
+                add_set.add(w)
+        # count
+        signature_vec.update(signature)
+        context_vec.update(context)
+        for w in add_set:
+            signature_vec[w] = 0
+        # cosine similarity
+        dot = sum(signature_vec[w] * context_vec[w] for w in signature_vec if w in context_vec)
+        mag1 = math.sqrt(sum(i ** 2 for i in signature_vec.values()))
+        mag2 = math.sqrt(sum(i ** 2 for i in context_vec.values()))
+        score = dot / (mag1 * mag2)
+        # score = len(set(signature) & set(context))
+
+        if score > best_score:
+            best_sense = sense
+            best_score = score
+    return best_sense
+    # raise NotImplementedError
+
 
 
 def lesk_w2v(sent: Sequence[WSDToken], word_index: int,
