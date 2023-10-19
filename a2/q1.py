@@ -59,7 +59,7 @@ def lesk(sent: Sequence[WSDToken], word_index: int) -> Synset:
     best_sense = mfs(sent, word_index)
     best_score = 0
     word = sent[word_index].lemma
-    context = sent
+    context = [s.wordform for s in sent]
     for sense in wn.synsets(word):
         signature = stop_tokenize(sense.definition())
         for e in sense.examples():
@@ -93,7 +93,7 @@ def lesk_ext(sent: Sequence[WSDToken], word_index: int) -> Synset:
     best_sense = mfs(sent, word_index)
     best_score = 0
     word = sent[word_index].lemma
-    context = sent
+    context = [s.wordform for s in sent]
     for sense in wn.synsets(word):
         signature = stop_tokenize(sense.definition())
         for e in sense.examples():
@@ -135,7 +135,7 @@ def lesk_cos(sent: Sequence[WSDToken], word_index: int) -> Synset:
     best_sense = mfs(sent, word_index)
     best_score = 0
     word = sent[word_index].lemma
-    context = sent
+    context = [s.wordform for s in sent]
     # create a counter to count occurrence of the words
     signature_vec = Counter()
     context_vec = Counter()
@@ -187,7 +187,8 @@ def lesk_cos_onesided(sent: Sequence[WSDToken], word_index: int) -> Synset:
     best_sense = mfs(sent, word_index)
     best_score = 0
     word = sent[word_index].lemma
-    context = sent
+    context = [s.wordform for s in sent]
+
     # create a counter to count occurrence of the words
     signature_vec = Counter()
     context_vec = Counter()
@@ -219,7 +220,10 @@ def lesk_cos_onesided(sent: Sequence[WSDToken], word_index: int) -> Synset:
         dot = sum(signature_vec[w] * context_vec[w] for w in signature_vec if w in context_vec)
         mag1 = math.sqrt(sum(i ** 2 for i in signature_vec.values()))
         mag2 = math.sqrt(sum(i ** 2 for i in context_vec.values()))
-        score = dot / (mag1 * mag2)
+        if mag1 != 0 and mag2 !=0:
+            score = dot / (mag1 * mag2)
+        else:
+            score = 0
         # score = len(set(signature) & set(context))
 
         if score > best_score:
@@ -280,8 +284,125 @@ def lesk_w2v(sent: Sequence[WSDToken], word_index: int,
         Synset: The prediction of the correct sense for the given word.
     """
     ### START CODE HERE
-    raise NotImplementedError
+    def get_vec(s: str):
+        word_lst = s.split()
+        if len(word_lst) == 1:
+            if word_lst[0] in vocab:
+                return word2vec[vocab[word_lst[0]]]
+            elif word_lst[0].lower() in vocab:
+                return word2vec[vocab[word_lst[0].lower()]]
+            else:
+                return np.zeros(len(word2vec[0]))
+        else:
+            s.replace(" ", "_")
+            if word_lst[0] in vocab:
+                return word2vec[vocab[word_lst[0]]]
+            elif word_lst[0].lower() in vocab:
+                return word2vec[vocab[word_lst[0].lower()]]
+            else:
+                temp = [get_vec(w) for w in word_lst]
+                return np.mean(temp, axis=0)
 
+    best_sense = mfs(sent, word_index)
+    best_score = 0
+    word = sent[word_index].lemma
+    context = [s.wordform for s in sent]
+    # word = sent[word_index].lemma.lower()
+    # context = [s.wordform.lower() for s in sent]
+
+    # create a counter to count occurrence of the words
+    signature_vec = Counter()
+    context_vec = Counter()
+    for sense in wn.synsets(word):
+        signature = stop_tokenize(sense.definition())
+        for e in sense.examples():
+            signature.extend(stop_tokenize(e))
+        # Iterate through sense's hyponyms, holonyms, and meronyms
+        new_bag = sense.hyponyms() + sense.member_holonyms() + sense.part_holonyms() + sense.substance_holonyms() \
+                  + sense.member_meronyms() + sense.part_meronyms() + sense.substance_meronyms()
+        for sense2 in new_bag:
+            signature.extend(stop_tokenize(sense2.definition()))
+            for e2 in sense2.examples():
+                signature.extend(stop_tokenize(e2))
+        # treat as set
+        signature = set(signature)
+        context = set(context)
+
+        # count
+        signature_vec = np.mean([get_vec(s) for s in signature], axis=0)
+        context_vec = np.mean([get_vec(s) for s in context], axis=0)
+        # cosine similarity
+        score = np.dot(signature_vec, context_vec) / (np.linalg.norm(signature_vec) * np.linalg.norm(context_vec))
+        # score = len(set(signature) & set(context))
+
+        if score > best_score:
+            best_sense = sense
+            best_score = score
+    return best_sense
+    # raise NotImplementedError
+
+
+def lesk_w2v_lower(sent: Sequence[WSDToken], word_index: int,
+             vocab: Mapping[str, int], word2vec: np.ndarray) -> Synset:
+
+    ### START CODE HERE
+    def get_vec(s: str):
+        word_lst = s.split()
+        if len(word_lst) == 1:
+            if word_lst[0] in vocab:
+                return word2vec[vocab[word_lst[0]]]
+            elif word_lst[0].lower() in vocab:
+                return word2vec[vocab[word_lst[0].lower()]]
+            else:
+                return np.zeros(len(word2vec[0]))
+        else:
+            s.replace(" ", "_")
+            if word_lst[0] in vocab:
+                return word2vec[vocab[word_lst[0]]]
+            elif word_lst[0].lower() in vocab:
+                return word2vec[vocab[word_lst[0].lower()]]
+            else:
+                temp = [get_vec(w) for w in word_lst]
+                return np.mean(temp, axis=0)
+
+    best_sense = mfs(sent, word_index)
+    best_score = 0
+    # word = sent[word_index].lemma
+    # context = [s.wordform for s in sent]
+    word = sent[word_index].lemma.lower()
+    context = [s.wordform.lower() for s in sent]
+
+    # create a counter to count occurrence of the words
+    signature_vec = Counter()
+    context_vec = Counter()
+    for sense in wn.synsets(word):
+        signature = stop_tokenize(sense.definition())
+        for e in sense.examples():
+            signature.extend(stop_tokenize(e))
+        # Iterate through sense's hyponyms, holonyms, and meronyms
+        new_bag = sense.hyponyms() + sense.member_holonyms() + sense.part_holonyms() + sense.substance_holonyms() \
+                  + sense.member_meronyms() + sense.part_meronyms() + sense.substance_meronyms()
+        for sense2 in new_bag:
+            signature.extend(stop_tokenize(sense2.definition()))
+            for e2 in sense2.examples():
+                signature.extend(stop_tokenize(e2))
+        # treat as set
+        signature = [w.lower() for w in signature]
+        signature = set(signature)
+        context = set(context)
+
+        # count
+        signature_vec = np.mean([get_vec(s) for s in signature], axis=0)
+        context_vec = np.mean([get_vec(s) for s in context], axis=0)
+        # cosine similarity
+        score = np.dot(signature_vec, context_vec) / (np.linalg.norm(signature_vec) * np.linalg.norm(context_vec))
+        # score = len(set(signature) & set(context))
+
+        if score > best_score:
+            best_sense = sense
+            best_score = score
+    return best_sense
+    # raise NotImplementedError
 
 if __name__ == '__main__':
     np.random.seed(1234)

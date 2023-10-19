@@ -96,11 +96,56 @@ def gather_sense_vectors(corpus: T.List[T.List[WSDToken]],
         retrieve the (PyTorch) vector for a given sense.
     """
     corpus = sorted(corpus, key=len)
+    synset_vectors = {}
     for batch_n in trange(0, len(corpus), batch_size, desc='gathering',
                           leave=False):
         batch = corpus[batch_n:batch_n + batch_size]
         ### START CODE HERE
-        raise NotImplementedError
+        batch_lemma = []
+        for s in range(len(batch)):
+            lemmas = []
+            for t in range(len(batch[s])):
+                lemmas.append(batch[s][t].lemma)
+            batch_lemma.append(lemmas)
+
+        bert_outputs, offset_mapping = run_bert(batch_lemma)
+        # original word index
+        for s, sentence in enumerate(batch):
+            token_vec = torch.zeros(len(bert_outputs[0][0]))
+            num_vec = 0
+            token_index = 0
+            for v in range(len(bert_outputs[0])):
+                # [0, 0]
+
+                if offset_mapping[s][v][1] == 0:
+                    pass
+                # *[0, 1], [1, 3]
+                elif offset_mapping[s][v][1] != len(sentence[token_index].lemma):
+                    token_vec += bert_outputs[s][v]
+                    num_vec += 1
+                elif offset_mapping[s][v][1] == len(sentence[token_index].lemma):
+                    token_synsets = sentence[token_index].synsets
+                    token_vec += bert_outputs[s][v]
+                    num_vec += 1
+                    # multiple vectors for a single token in the input data
+                    token_vec /= num_vec
+                    if token_synsets:
+                        for synset in token_synsets:
+                            if synset not in synset_vectors:
+                                synset_vectors[synset] = [token_vec]
+                            else:
+                                synset_vectors[synset].append(token_vec)
+                    token_vec = torch.zeros(len(bert_outputs[0][0]))
+                    num_vec = 0
+                    # original word index
+                    token_index += 1
+
+    for key in synset_vectors:
+        mean = torch.mean(torch.stack(synset_vectors[key]), dim=0)
+        synset_vectors[key] = mean
+
+    return synset_vectors
+        # raise NotImplementedError
 
 
 def bert_1nn(batch: T.List[T.List[WSDToken]],
@@ -136,7 +181,117 @@ def bert_1nn(batch: T.List[T.List[WSDToken]],
         pred: The predictions of the correct sense for the given words.
     """
     ### START CODE HERE
-    raise NotImplementedError
+    batch_lemma = []
+    token_vecs = {}
+    ret = []
+    for i in range(len(batch)):
+        temp = []
+        for j in range(len(batch[i])):
+            temp.append(batch[i][j].lemma)
+        batch_lemma.append(temp)
+    bert_outputs, offset_mapping = run_bert(batch_lemma)
+
+    indices = [list(i) for i in indices]
+
+    for s, sentence in enumerate(batch):
+        token_vec = torch.zeros(len(bert_outputs[0][0]))
+        num_vec = 0
+        token_index = 0
+        temp = []
+        for v in range(len(bert_outputs[0])):
+            # [0, 0]
+            if offset_mapping[s][v][1] == 0:
+                pass
+
+            # *[0, 1], [1, 3]
+            elif offset_mapping[s][v][1] != len(sentence[token_index].lemma):
+                token_vec += bert_outputs[s][v]
+                num_vec += 1
+            elif offset_mapping[s][v][1] == len(sentence[token_index].lemma):
+                token_synsets = sentence[token_index].synsets
+                token_vec += bert_outputs[s][v]
+                num_vec += 1
+                # multiple vectors for a single token in the input data
+                token_vec /= num_vec
+                token_vecs[token_index] = token_vec
+                for i in indices[s]:
+                    if i == token_index:
+                        senses_vec = []
+                        senses = []
+                        for sense in wn.synsets(sentence[token_index].lemma): # CHECK THIS
+                            if sense.name() in sense_vectors:
+                                senses_vec.append(sense_vectors[sense.name()])
+                                senses.append(sense)
+                        if senses_vec:
+                            sense_vectors_matrix = torch.stack(senses_vec)
+                            similarity_scores = torch.nn.functional.cosine_similarity(sense_vectors_matrix,
+                                                                                      token_vec)
+                            best_sense_index = torch.argmax(similarity_scores)
+                            best_sense = senses[best_sense_index]
+                        else:
+                            best_sense = mfs(sentence, i)
+                        temp.append(best_sense)
+                token_vec = torch.zeros(len(bert_outputs[0][0]))
+                num_vec = 0
+                # original word index
+                token_index += 1
+        if len(temp) != 0:
+            ret.append(temp)
+    return ret
+
+
+
+
+    #
+    # # original word index
+    # for i, sentence in enumerate(batch):
+    #     ass_vec = torch.zeros(len(bert_outputs[0][0]))
+    #     num_vec = 0
+    #     token_index = 0
+    #     for j in range(len(bert_outputs[0])):
+    #         if token_index > len(sentence) - 1:
+    #             break
+    #         if offset_mapping[i][j][1] != 0 and offset_mapping[i][j][1] != len(sentence[token_index].lemma):
+    #             ass_vec += bert_outputs[i][j]
+    #             num_vec += 1
+    #         elif offset_mapping[i][j][1] != 0 and offset_mapping[i][j][1] == len(sentence[token_index].lemma):
+    #             token_synsets = sentence[token_index].synsets
+    #             ass_vec += bert_outputs[i][j]
+    #             num_vec += 1
+    #             # multiple vectors for a single token in the input data
+    #             ass_vec /= num_vec
+    #             # record vec for the token in the batch
+    #             token_vec[sentence[token_index].lemma] = ass_vec
+    #
+    #             ass_vec = torch.zeros(len(bert_outputs[0][0]))
+    #             num_vec = 0
+    #             # original word index
+    #             token_index += 1
+    # indices = [list(i) for i in indices]
+    # for i, sentence in enumerate(batch):
+    #     ret.append([])
+    #     for t, token in enumerate(sentence):
+    #         if t in indices[i]:
+    #             if len(sense_vectors) != 0 and any(sense.name() in sense_vectors for sense in wn.synsets(token.lemma)):
+    #                 senses_vec = []
+    #                 senses = []
+    #                 for sense in wn.synsets(token.lemma):
+    #                     if sense.name() in sense_vectors:
+    #                         senses_vec.append(sense_vectors[sense.name()])
+    #                         senses.append(sense)
+    #                 sense_vectors_matrix = torch.stack(senses_vec)
+    #                 # print(token_vec.keys(), token)
+    #                 # print(sentence)
+    #                 similarity_scores = torch.nn.functional.cosine_similarity(sense_vectors_matrix, token_vec[token.lemma])
+    #                 best_sense_index = torch.argmax(similarity_scores)
+    #                 best_sense = senses[best_sense_index]
+    #                 ret[i].append(best_sense)
+    #
+    #             else:
+    #                 # none of the senses have vectors
+    #                 ret[i].append(mfs(batch[i], t))
+    # return ret
+    # raise NotImplementedError
 
 
 if __name__ == '__main__':
